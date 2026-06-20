@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Système de Gestion Hospitalière - Hôpital EL-ELYON">
+    <title>Hôpital EL-ELYON - Gestion Hospitalière</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @media print { .no-print { display: none !important; } .print-only { display: block !important; } body { background: white; } .main-content { margin-left: 0 !important; width: 100% !important; } .modal { display: none !important; } #loginScreen { display: none !important; } }
+        .print-only { display: none; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
+        #loginScreen { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); }
+        .firebase-error { background: #fee2e2; border: 2px solid #dc2626; color: #991b1b; padding: 20px; border-radius: 8px; margin: 20px; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+    <!-- ÉCRAN DE CONNEXION -->
+    <div id="loginScreen" class="fixed inset-0 z-[100] flex items-center justify-center">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+            <div class="mb-6">
+                <i class="fas fa-hospital-symbol text-6xl text-blue-900 mb-4"></i>
+                <h1 class="text-3xl font-bold text-blue-900">Hôpital EL-ELYON</h1>
+                <p class="text-gray-500 mt-2">Système de Gestion Hospitalière</p>
+                <p class="text-xs text-green-600 mt-2"><i class="fas fa-sync-alt mr-1"></i> Données synchronisées en temps réel</p>
+            </div>
+            <form id="loginForm" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-3 top-3 text-gray-400"></i>
+                        <input type="password" id="passwordInput" required class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Entrez le mot de passe">
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">* Mot de passe par défaut : <strong>admin</strong></p>
+                </div>
+                <button type="submit" class="w-full bg-blue-900 text-white py-3 rounded-lg hover:bg-blue-800 transition font-semibold shadow-lg mt-4"><i class="fas fa-sign-in-alt mr-2"></i> Se connecter</button>
+                <p id="loginError" class="text-red-600 text-sm text-center hidden"><i class="fas fa-exclamation-circle mr-1"></i> Mot de passe incorrect</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- MESSAGE D'ERREUR FIREBASE -->
+    <div id="firebaseError" class="firebase-error hidden fixed inset-0 z-[200] flex items-center justify-center bg-white">
+        <div class="max-w-2xl text-center p-8">
+            <i class="fas fa-exclamation-triangle text-6xl text-red-600 mb-4"></i>
+            <h2 class="text-2xl font-bold text-red-800 mb-4">Configuration Firebase requise</h2>
+            <p class="text-gray-700 mb-4">Pour que plusieurs personnes voient les mêmes données, vous devez configurer Firebase.</p>
+            <div class="bg-gray-100 p-4 rounded text-left text-sm">
+                <p class="font-bold mb-2">Étapes à suivre :</p>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li>Allez sur <a href="https://console.firebase.google.com" class="text-blue-600 underline" target="_blank">console.firebase.google.com</a></li>
+                    <li>Créez un projet et activez Firestore Database</li>
+                    <li>Copiez les clés de configuration</li>
+                    <li>Ouvrez le fichier <code>index.html</code> dans un éditeur de texte</li>
+                    <li>Remplacez le bloc <code>firebaseConfig</code> par vos clés</li>
+                    <li>Enregistrez et republiez sur GitHub</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLICATION PRINCIPALE -->
+    <div id="mainApp" class="hidden">
+        <aside class="fixed top-0 left-0 h-full w-64 bg-blue-900 text-white shadow-xl no-print z-40 flex flex-col">
+            <div class="p-6 text-center border-b border-blue-800">
+                <h1 class="text-2xl font-bold"><i class="fas fa-hospital-symbol mr-2"></i>EL-ELYON</h1>
+                <p class="text-xs text-blue-300 mt-1">Système en ligne</p>
+            </div>
+            <nav class="mt-6 flex-1">
+                <a href="#" onclick="showModule('dashboard')" class="block py-3 px-6 hover:bg-blue-800 transition flex items-center"><i class="fas fa-chart-line w-6"></i> Tableau de bord</a>
+                <a href="#" onclick="showModule('chambres')" class="block py-3 px-6 hover:bg-blue-800 transition flex items-center"><i class="fas fa-bed w-6"></i> Chambres</a>
+                <a href="#" onclick="showModule('admission')" class="block py-3 px-6 hover:bg-blue-800 transition flex items-center"><i class="fas fa-user-plus w-6"></i> Admission</a>
+                <a href="#" onclick="showModule('assurances')" class="block py-3 px-6 hover:bg-blue-800 transition flex items-center"><i class="fas fa-file-contract w-6"></i> Assurances</a>
+                <a href="#" onclick="showModule('sorties')" class="block py-3 px-6 hover:bg-blue-800 transition flex items-center"><i class="fas fa-door-open w-6"></i> Exéat & Décès</a>
+                <a href="#" onclick="showModule('historique')" class="block py-3 px-6 hover:bg-blue-800 transition flex items-center"><i class="fas fa-history w-6"></i> Historique</a>
+            </nav>
+            <div class="p-4 border-t border-blue-800">
+                <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition flex items-center justify-center font-medium"><i class="fas fa-sign-out-alt mr-2"></i> Déconnexion</button>
+                <p class="text-center text-xs text-blue-400 mt-3">&copy; 2026 Hôpital EL-ELYON</p>
+            </div>
+        </aside>
+
+        <main class="ml-64 p-8 main-content min-h-screen">
+            <!-- MODULE: TABLEAU DE BORD -->
+            <div id="dashboard" class="module fade-in">
+                <div class="flex justify-between items-center mb-8 no-print">
+                    <h2 class="text-3xl font-bold text-blue-900">Tableau de Bord</h2>
+                    <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow flex items-center"><i class="fas fa-print mr-2"></i> Imprimer</button>
+                </div>
+                <div class="print-only text-center mb-6">
+                    <h1 class="text-3xl font-bold text-blue-900">HÔPITAL EL-ELYON</h1>
+                    <p class="text-gray-600">Rapport généré le <span id="printDate"></span></p>
+                    <hr class="my-4 border-gray-400">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+                        <div class="flex justify-between items-center"><div><p class="text-gray-500 text-sm">Patients Hospitalisés</p><h3 class="text-4xl font-bold text-gray-800" id="dash-hospitalized">0</h3></div><i class="fas fa-procedures text-4xl text-blue-200"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+                        <div class="flex justify-between items-center"><div><p class="text-gray-500 text-sm">Salles Totales</p><h3 class="text-4xl font-bold text-gray-800" id="dash-total-rooms">0</h3></div><i class="fas fa-hospital text-4xl text-green-200"></i></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500">
+                        <div class="flex justify-between items-center"><div><p class="text-gray-500 text-sm">Salles Vides</p><h3 class="text-4xl font-bold text-gray-800" id="dash-empty-rooms">0</h3></div><i class="fas fa-door-open text-4xl text-yellow-200"></i></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-700">Aperçu des Occupations & Assurances</h3>
+                    <div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-gray-100 text-gray-600 text-sm uppercase"><th class="p-3 border-b">N°</th><th class="p-3 border-b">Patient</th><th class="p-3 border-b">Entrée</th><th class="p-3 border-b">Durée</th><th class="p-3 border-b">Assurance</th><th class="p-3 border-b">Prise en charge</th></tr></thead><tbody id="dash-room-table" class="text-sm"></tbody></table></div>
+                </div>
+            </div>
+
+            <!-- MODULE: CHAMBRES -->
+            <div id="chambres" class="module hidden fade-in">
+                <h2 class="text-3xl font-bold text-blue-900 mb-6 no-print">Gestion des Chambres</h2>
+                <div class="bg-white p-6 rounded-lg shadow-md mb-6 no-print">
+                    <form id="roomForm" class="flex gap-4 items-end">
+                        <div class="flex-1"><label class="block text-sm font-medium text-gray-700">Numéro</label><input type="text" id="roomNumber" required class="mt-1 block w-full rounded-md border p-2"></div>
+                        <div class="flex-1"><label class="block text-sm font-medium text-gray-700">Type</label><select id="roomType" class="mt-1 block w-full rounded-md border p-2"><option>Standard</option><option>VIP</option><option>Réanimation</option><option>Pédiatrie</option></select></div>
+                        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700"><i class="fas fa-plus mr-1"></i> Ajouter</button>
+                    </form>
+                </div>
+                <div class="bg-white rounded-lg shadow-md overflow-hidden"><table class="w-full text-left"><thead class="bg-blue-900 text-white"><tr><th class="p-4">Numéro</th><th class="p-4">Type</th><th class="p-4">Statut</th><th class="p-4 no-print">Actions</th></tr></thead><tbody id="roomTableBody" class="divide-y divide-gray-200"></tbody></table></div>
+            </div>
+
+            <!-- MODULE: ADMISSION -->
+            <div id="admission" class="module hidden fade-in">
+                <h2 class="text-3xl font-bold text-blue-900 mb-6">Admission Patient</h2>
+                <div class="bg-white p-8 rounded-lg shadow-md max-w-2xl">
+                    <form id="admissionForm" class="space-y-6">
+                        <div><label class="block text-sm font-medium text-gray-700">Nom complet</label><input type="text" id="patName" required class="mt-1 block w-full rounded-md border p-2"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">Date d'admission</label><input type="date" id="patAdmissionDate" required class="mt-1 block w-full rounded-md border p-2"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">Chambre</label><select id="patRoom" required class="mt-1 block w-full rounded-md border p-2 bg-white"></select></div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Statut d'assurance</label>
+                            <select id="patInitialStatus" onchange="toggleAdmissionInsurance(this.value)" class="mt-1 block w-full rounded-md border p-2 bg-white"><option value="non_assure">Non Assuré</option><option value="assure">Assuré</option></select>
+                        </div>
+                        <div id="admissionInsTypeDiv" class="hidden">
+                            <label class="block text-sm font-medium text-gray-700">Type d'assurance</label>
+                            <select id="patInsType" class="mt-1 block w-full rounded-md border p-2 bg-white">
+                                <option value="">-- Sélectionner --</option>
+                                <option>AMU</option><option>INAM</option><option>ASCOMA</option><option>GRAS SAVOYE</option><option>SALAM</option><option>OLEA</option><option>GTA</option><option>TRANSVIE</option><option>SUNU CLASSIQUE</option><option>SUNU BUDGET</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end pt-4"><button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-semibold shadow-lg"><i class="fas fa-save mr-2"></i> Enregistrer</button></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- MODULE: ASSURANCES -->
+            <div id="assurances" class="module hidden fade-in">
+                <h2 class="text-3xl font-bold text-blue-900 mb-6">Gestion des Prises en Charge</h2>
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <table class="w-full text-left"><thead class="bg-blue-900 text-white"><tr><th class="p-4">Patient</th><th class="p-4">Chambre</th><th class="p-4">Assurance</th><th class="p-4">Détails</th><th class="p-4">Total jours</th><th class="p-4 no-print">Action</th></tr></thead><tbody id="insuranceTableBody" class="divide-y divide-gray-200"></tbody></table>
+                </div>
+            </div>
+
+            <!-- MODULE: SORTIES -->
+            <div id="sorties" class="module hidden fade-in">
+                <h2 class="text-3xl font-bold text-blue-900 mb-6">Exéat & Décès</h2>
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <table class="w-full text-left"><thead class="bg-blue-900 text-white"><tr><th class="p-4">Patient</th><th class="p-4">Chambre</th><th class="p-4">Admission</th><th class="p-4">Assurance</th><th class="p-4">Actions</th></tr></thead><tbody id="activePatientsTable" class="divide-y divide-gray-200"></tbody></table>
+                </div>
+            </div>
+
+            <!-- MODULE: HISTORIQUE -->
+            <div id="historique" class="module hidden fade-in">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 no-print gap-4">
+                    <h2 class="text-3xl font-bold text-blue-900">Historique</h2>
+                    <div class="flex gap-2 flex-wrap">
+                        <input type="text" id="historySearch" onkeyup="renderHistory()" placeholder="Rechercher..." class="pl-4 pr-4 py-2 border rounded-lg">
+                        <button onclick="resetHistory()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow"><i class="fas fa-trash-restore mr-2"></i> Vider</button>
+                        <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded shadow"><i class="fas fa-print mr-2"></i> Imprimer</button>
+                    </div>
+                </div>
+                <div class="print-only text-center mb-6">
+                    <h1 class="text-3xl font-bold text-blue-900">HÔPITAL EL-ELYON</h1>
+                    <p class="text-gray-600">Historique complet</p>
+                    <hr class="my-4 border-gray-400">
+                </div>
+                <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                    <table class="w-full text-left"><thead class="bg-gray-800 text-white"><tr><th class="p-4">Date</th><th class="p-4">Type</th><th class="p-4">Patient</th><th class="p-4">Chambre</th><th class="p-4">Détails</th><th class="p-4">Sortie/Décès</th></tr></thead><tbody id="historyTableBody" class="divide-y divide-gray-200"></tbody></table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL ASSURANCE -->
+    <div id="insuranceModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeModal()"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-3xl mx-auto rounded-lg shadow-2xl z-50 overflow-y-auto max-h-[90vh]">
+            <div class="modal-content py-6 px-8">
+                <div class="flex justify-between items-center pb-4 border-b">
+                    <h3 class="text-2xl font-bold text-blue-900">Configurer la Prise en Charge</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-red-500"><i class="fas fa-times text-2xl"></i></button>
+                </div>
+                <form id="insuranceForm" class="mt-6 space-y-5">
+                    <input type="hidden" id="modalPatientId">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6">
+                        <p class="font-bold text-blue-900">Patient : <span id="modalPatientName"></span></p>
+                        <p class="text-sm text-gray-600">Chambre : <span id="modalPatientRoom"></span> | Assurance : <span id="modalInsTypeDisplay" class="font-semibold"></span></p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Statut</label><select id="modalInsStatus" class="block w-full rounded-md border p-2.5"><option>En attente</option><option>Accordée</option><option>Refusée</option></select></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Date demande</label><input type="date" id="modalReqDate" class="block w-full rounded-md border p-2.5"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Date début</label><input type="date" id="modalStart" oninput="autoCalculateEndDate()" class="block w-full rounded-md border p-2.5"></div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Date fin</label><input type="date" id="modalEnd" class="block w-full rounded-md border p-2.5 bg-gray-100" readonly><p class="text-xs text-blue-600 mt-1"><i class="fas fa-magic mr-1"></i> Auto-calculée</p></div>
+                    </div>
+                    <div class="border-t pt-6 mt-6">
+                        <h4 class="text-lg font-semibold text-blue-900 mb-3"><i class="fas fa-list-ol mr-2"></i>Détail des jours et prix par jour</h4>
+                        <p class="text-xs text-gray-500 mb-4">Ex : 7 jours à 5 000 F + 1 jour à 3 375 F</p>
+                        <div id="priceBreakdownContainer" class="space-y-2"></div>
+                        <button type="button" onclick="addPriceBreakdownRow()" class="mt-3 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium"><i class="fas fa-plus mr-1"></i> Ajouter une tranche</button>
+                        <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                            <p class="text-sm text-gray-700 font-medium">Total des jours de prise en charge :</p>
+                            <p class="text-3xl font-bold text-blue-700" id="totalDaysDisplay">0 jour(s)</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-6 border-t mt-6 gap-3">
+                        <button type="button" onclick="closeModal()" class="px-6 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300">Annuler</button>
+                        <button type="submit" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"><i class="fas fa-save mr-2"></i> Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT FIREBASE (Module ES6) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // ⚠️ REMPLACEZ CE BLOC PAR VOS CLÉS FIREBASE
+        const firebaseConfig = {
+            apiKey: "VOTRE_API_KEY_ICI",
+            authDomain: "votre-projet.firebaseapp.com",
+            projectId: "votre-projet",
+            storageBucket: "votre-projet.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        // Vérification de la configuration
+        if (firebaseConfig.apiKey === "VOTRE_API_KEY_ICI") {
+            document.getElementById('firebaseError').classList.remove('hidden');
+            document.getElementById('loginScreen').classList.add('hidden');
+            throw new Error("Firebase non configuré");
+        }
+
+        // Initialisation Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Variables globales
+        let rooms = [];
+        let patients = [];
+        let historyData = [];
+
+        // --- AUTHENTIFICATION ---
+        const CORRECT_PASSWORD = "admin";
+        function checkAuth() {
+            if (sessionStorage.getItem('elyon_auth') === 'true') {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                initializeApp();
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+            }
+        }
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (document.getElementById('passwordInput').value === CORRECT_PASSWORD) {
+                sessionStorage.setItem('elyon_auth', 'true');
+                checkAuth();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        });
+        window.logout = () => { if(confirm("Déconnexion ?")) { sessionStorage.removeItem('elyon_auth'); location.reload(); } };
+
+        // --- INITIALISATION AVEC ÉCOUTE TEMPS RÉEL ---
+        async function initializeApp() {
+            document.getElementById('printDate').textContent = new Date().toLocaleDateString('fr-FR');
+            setDefaultAdmissionDate();
+            
+            // Écoute Chambres
+            onSnapshot(collection(db, "rooms"), (snapshot) => {
+                rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if(rooms.length === 0) seedInitialData();
+                updateDashboard(); renderRooms(); populateRoomSelect();
+            });
+
+            // Écoute Patients
+            onSnapshot(collection(db, "patients"), (snapshot) => {
+                patients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateDashboard(); renderInsuranceModule(); renderActivePatients();
+            });
+
+            // Écoute Historique
+            onSnapshot(collection(db, "history"), (snapshot) => {
+                historyData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => new Date(b.date) - new Date(a.date));
+                renderHistory();
+            });
+        }
+
+        async function seedInitialData() {
+            await addDoc(collection(db, "rooms"), { number: '101', type: 'Standard', status: 'empty' });
+            await addDoc(collection(db, "rooms"), { number: '102', type: 'VIP', status: 'empty' });
+            await addDoc(collection(db, "rooms"), { number: '201', type: 'Réanimation', status: 'empty' });
+        }
+
+        function setDefaultAdmissionDate() { document.getElementById('patAdmissionDate').value = new Date().toISOString().split('T')[0]; }
+
+        async function addHistoryEntry(type, patientName, roomNumber, details, exitDate = null) {
+            await addDoc(collection(db, "history"), { date: new Date().toLocaleString('fr-FR'), type, patientName, roomNumber, details, exitDate });
+        }
+
+        window.showModule = (moduleId) => {
+            document.querySelectorAll('.module').forEach(el => el.classList.add('hidden'));
+            document.getElementById(moduleId).classList.remove('hidden');
+            if(moduleId === 'admission') setDefaultAdmissionDate();
+        };
+
+        // --- CALCUL DATE FIN ---
+        window.autoCalculateEndDate = () => {
+            const startDateStr = document.getElementById('modalStart').value;
+            const totalDays = getTotalDaysFromBreakdown();
+            if (startDateStr && totalDays > 0) {
+                const parts = startDateStr.split('-');
+                const start = new Date(parts[0], parts[1] - 1, parts[2]);
+                start.setDate(start.getDate() + (totalDays - 1));
+                document.getElementById('modalEnd').value = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+            } else { document.getElementById('modalEnd').value = ''; }
+        };
+
+        // --- TRANCHES DE PRIX ---
+        let priceBreakdownCounter = 0;
+        window.addPriceBreakdownRow = (days = '', price = '') => {
+            priceBreakdownCounter++;
+            const rowId = `breakdown-row-${priceBreakdownCounter}`;
+            const row = document.createElement('div');
+            row.id = rowId;
+            row.className = 'grid grid-cols-12 gap-2 items-center bg-gray-50 p-3 rounded-lg border';
+            row.innerHTML = `
+                <div class="col-span-5"><label class="block text-xs text-gray-600 mb-1">Jours</label><input type="number" min="1" value="${days}" oninput="updateTotals()" class="breakdown-days block w-full rounded-md border p-2"></div>
+                <div class="col-span-5"><label class="block text-xs text-gray-600 mb-1">Prix/Jour (F)</label><input type="number" min="0" value="${price}" class="breakdown-price block w-full rounded-md border p-2"></div>
+                <div class="col-span-2 flex items-end justify-end pb-1"><button type="button" onclick="window.removePriceBreakdownRow('${rowId}')" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button></div>`;
+            document.getElementById('priceBreakdownContainer').appendChild(row);
+            updateTotals();
+        };
+        window.removePriceBreakdownRow = (rowId) => { document.getElementById(rowId)?.remove(); updateTotals(); };
+        
+        function getTotalDaysFromBreakdown() {
+            let total = 0;
+            document.querySelectorAll('.breakdown-days').forEach(input => { const val = parseInt(input.value); if (!isNaN(val) && val > 0) total += val; });
+            return total;
+        }
+        function updateTotals() {
+            let totalDays = 0;
+            document.querySelectorAll('#priceBreakdownContainer > div').forEach(row => { totalDays += (parseInt(row.querySelector('.breakdown-days').value) || 0); });
+            document.getElementById('totalDaysDisplay').textContent = `${totalDays} jour(s)`;
+            autoCalculateEndDate();
+        }
+        function getBreakdownData() {
+            const breakdown = [];
+            document.querySelectorAll('#priceBreakdownContainer > div').forEach(row => {
+                const days = parseInt(row.querySelector('.breakdown-days').value) || 0;
+                const price = parseFloat(row.querySelector('.breakdown-price').value) || 0;
+                if (days > 0) breakdown.push({ days, price });
+            });
+            return breakdown;
+        }
+
+        // --- DASHBOARD ---
+        function calculateDays(admissionDateStr) {
+            if (!admissionDateStr) return 0;
+            const parts = admissionDateStr.split('/');
+            if (parts.length !== 3) return 0;
+            const admDate = new Date(parts[2], parts[1] - 1, parts[0]);
+            const today = new Date();
+            admDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
+            return Math.max(0, Math.floor((today - admDate) / (1000 * 60 * 60 * 24)));
+        }
+
+        function updateDashboard() {
+            document.getElementById('dash-hospitalized').textContent = patients.filter(p => p.status === 'hospitalized').length;
+            document.getElementById('dash-total-rooms').textContent = rooms.length;
+            document.getElementById('dash-empty-rooms').textContent = rooms.filter(r => r.status === 'empty').length;
+            
+            const tbody = document.getElementById('dash-room-table');
+            tbody.innerHTML = '';
+            rooms.forEach(room => {
+                const patient = patients.find(p => p.roomId === room.id && p.status === 'hospitalized');
+                let pName = '-', admDate = '-', daysDisp = '-', insBadge = '<span class="text-gray-400 text-xs">-</span>', covDates = '<span class="text-gray-400 text-xs">-</span>';
+                if (patient) {
+                    pName = `<span class="font-semibold">${patient.name}</span>`;
+                    admDate = `<span class="font-medium">${patient.admissionDate}</span>`;
+                    const days = calculateDays(patient.admissionDate);
+                    daysDisp = `<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold ${days === 0 ? 'bg-blue-100 text-blue-800' : 'bg-indigo-100 text-indigo-800'}"><i class="fas fa-calendar-day mr-1"></i> ${days}</span>`;
+                    if (patient.insurance && patient.insurance.type !== 'Aucune') {
+                        const sc = patient.insurance.status === 'Accordée' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                        insBadge = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold ${sc}"><i class="fas fa-shield-alt mr-1"></i> ${patient.insurance.type}</span>`;
+                        const bd = patient.insurance.priceBreakdown || [];
+                        const totalD = bd.reduce((sum, b) => sum + b.days, 0);
+                        const bdText = bd.length > 0 ? bd.map(b => `${b.days}j à ${b.price.toLocaleString('fr-FR')} F`).join(' + ') : '';
+                        covDates = `<div class="text-xs space-y-1">
+                            <div>Début: <strong>${patient.insurance.start || '-'}</strong> | Fin: <strong>${patient.insurance.end || '-'}</strong></div>
+                            ${bdText ? `<div class="text-blue-700 font-medium mt-1"><i class="fas fa-info-circle mr-1"></i> ${bdText}</div>` : ''}
+                            <div class="text-indigo-700 font-bold mt-1"><i class="fas fa-calendar-day mr-1"></i> Total: ${totalD} jour(s)</div>
+                        </div>`;
+                    }
+                }
+                tbody.innerHTML += `<tr class="border-b hover:bg-gray-50"><td class="p-3"><div class="font-medium">${room.number}</div><div class="text-xs text-gray-500">${room.type}</div></td><td class="p-3">${pName}</td><td class="p-3">${admDate}</td><td class="p-3">${daysDisp}</td><td class="p-3">${insBadge}</td><td class="p-3">${covDates}</td></tr>`;
+            });
+        }
+
+        // --- CRUD CHAMBRES ---
+        document.getElementById('roomForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await addDoc(collection(db, "rooms"), { number: document.getElementById('roomNumber').value, type: document.getElementById('roomType').value, status: 'empty' });
+            addHistoryEntry('Création', '-', document.getElementById('roomNumber').value, 'Chambre créée');
+            e.target.reset(); alert('Chambre ajoutée !');
+        });
+
+        function renderRooms() {
+            const tbody = document.getElementById('roomTableBody');
+            tbody.innerHTML = '';
+            rooms.forEach(room => {
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-4 font-semibold">${room.number}</td><td class="p-4">${room.type}</td><td class="p-4"><span class="px-2 py-1 rounded text-xs ${room.status === 'empty' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${room.status === 'empty' ? 'Vide' : 'Occupée'}</span></td><td class="p-4 no-print"><button onclick="window.deleteRoom('${room.id}')" class="text-red-600 hover:text-red-800 ${room.status === 'occupied' ? 'opacity-50 cursor-not-allowed' : ''}" ${room.status === 'occupied' ? 'disabled' : ''}><i class="fas fa-trash"></i></button></td></tr>`;
+            });
+        }
+        window.deleteRoom = async (id) => { if(confirm('Supprimer ?')) await deleteDoc(doc(db, "rooms", id)); };
+
+        // --- ADMISSION ---
+        window.toggleAdmissionInsurance = (value) => {
+            const div = document.getElementById('admissionInsTypeDiv');
+            if (value === 'assure') div.classList.remove('hidden');
+            else { div.classList.add('hidden'); document.getElementById('patInsType').value = ""; }
+        };
+        function populateRoomSelect() {
+            const select = document.getElementById('patRoom');
+            select.innerHTML = '<option value="">Sélectionner une chambre vide</option>';
+            rooms.filter(r => r.status === 'empty').forEach(room => { select.innerHTML += `<option value="${room.id}">Chambre ${room.number} (${room.type})</option>`; });
+        }
+
+        document.getElementById('admissionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const roomId = document.getElementById('patRoom').value;
+            const room = rooms.find(r => r.id === roomId);
+            const initialStatus = document.getElementById('patInitialStatus').value;
+            const insType = initialStatus === 'assure' ? document.getElementById('patInsType').value : 'Aucune';
+            if (initialStatus === 'assure' && !insType) { alert("Sélectionnez le type d'assurance."); return; }
+            
+            const formattedDate = new Date(document.getElementById('patAdmissionDate').value).toLocaleDateString('fr-FR');
+            const newPatientData = { 
+                name: document.getElementById('patName').value, roomId, roomNumber: room.number, admissionDate: formattedDate, status: 'hospitalized', 
+                insurance: { type: insType, status: 'En attente', reqDate: '', start: '', end: '', priceBreakdown: [] } 
+            };
+            
+            await addDoc(collection(db, "patients"), newPatientData);
+            await updateDoc(doc(db, "rooms", roomId), { status: 'occupied' });
+            addHistoryEntry('Admission', newPatientData.name, room.number, `Admis le ${formattedDate} - ${initialStatus === 'assure' ? 'Assuré (' + insType + ')' : 'Non assuré'}`);
+            
+            e.target.reset(); toggleAdmissionInsurance('non_assure'); setDefaultAdmissionDate(); alert('Patient admis !'); showModule('dashboard');
+        });
+
+        // --- MODULES D'AFFICHAGE ---
+        function renderInsuranceModule() {
+            const tbody = document.getElementById('insuranceTableBody');
+            tbody.innerHTML = '';
+            const active = patients.filter(p => p.status === 'hospitalized' && p.insurance && p.insurance.type !== 'Aucune');
+            if(active.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">Aucun patient assuré.</td></tr>'; return; }
+            active.forEach(p => {
+                const statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-bold ${p.insurance.status === 'Accordée' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${p.insurance.status}</span>`;
+                const bd = p.insurance.priceBreakdown || [];
+                const totalDays = bd.reduce((sum, b) => sum + b.days, 0);
+                const bdText = bd.length > 0 ? bd.map(b => `${b.days}j à ${b.price.toLocaleString('fr-FR')} F`).join(' + ') : '<span class="italic text-gray-400">Non défini</span>';
+                const details = (totalDays > 0) ? `<div class="text-xs text-gray-700"><div>Du <strong>${p.insurance.start || '-'}</strong> au <strong>${p.insurance.end || '-'}</strong></div><div class="mt-1 text-blue-700 font-medium">${bdText}</div></div>` : `<span class="text-xs text-gray-500 italic">Non renseigné</span>`;
+                const daysDisplay = totalDays > 0 ? `<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-800"><i class="fas fa-calendar-day mr-1"></i> ${totalDays}</span>` : `-`;
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-4 font-semibold">${p.name}</td><td class="p-4">${p.roomNumber}</td><td class="p-4 font-medium text-blue-800">${p.insurance.type}</td><td class="p-4 text-sm">${details}</td><td class="p-4">${daysDisplay}</td><td class="p-4 no-print"><button onclick="window.openInsuranceModal('${p.id}')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"><i class="fas fa-edit mr-1"></i></button></td></tr>`;
+            });
+        }
+
+        window.openInsuranceModal = (patientId) => {
+            const p = patients.find(pat => pat.id === patientId);
+            document.getElementById('modalPatientId').value = p.id;
+            document.getElementById('modalPatientName').textContent = p.name;
+            document.getElementById('modalPatientRoom').textContent = p.roomNumber;
+            document.getElementById('modalInsTypeDisplay').textContent = p.insurance.type;
+            document.getElementById('modalInsStatus').value = p.insurance.status || 'En attente';
+            document.getElementById('modalReqDate').value = p.insurance.reqDate || '';
+            document.getElementById('modalStart').value = p.insurance.start || '';
+            document.getElementById('modalEnd').value = p.insurance.end || '';
+            document.getElementById('priceBreakdownContainer').innerHTML = '';
+            priceBreakdownCounter = 0;
+            const bd = p.insurance.priceBreakdown || [];
+            if (bd.length > 0) bd.forEach(item => addPriceBreakdownRow(item.days, item.price));
+            else addPriceBreakdownRow();
+            document.getElementById('insuranceModal').classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('modal-active');
+            autoCalculateEndDate();
+        };
+        window.closeModal = () => { document.getElementById('insuranceModal').classList.add('opacity-0', 'pointer-events-none'); document.body.classList.remove('modal-active'); };
+
+        document.getElementById('insuranceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const pId = document.getElementById('modalPatientId').value;
+            const p = patients.find(pat => pat.id === pId);
+            const updateData = {
+                status: document.getElementById('modalInsStatus').value,
+                reqDate: document.getElementById('modalReqDate').value,
+                start: document.getElementById('modalStart').value,
+                end: document.getElementById('modalEnd').value,
+                priceBreakdown: getBreakdownData()
+            };
+            await updateDoc(doc(db, "patients", pId), { insurance: updateData });
+            addHistoryEntry('Mise à jour Assurance', p.name, p.roomNumber, `Statut: ${updateData.status} | ${getTotalDaysFromBreakdown()} jours`);
+            closeModal(); alert('Enregistré !');
+        });
+
+        function renderActivePatients() {
+            const tbody = document.getElementById('activePatientsTable');
+            tbody.innerHTML = '';
+            const active = patients.filter(p => p.status === 'hospitalized');
+            if(active.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">Aucun patient.</td></tr>'; return; }
+            active.forEach(p => {
+                const insStatus = (p.insurance && p.insurance.type !== 'Aucune') ? `<span class="text-blue-700 font-semibold"><i class="fas fa-shield-alt mr-1"></i>${p.insurance.type}</span><br><span class="text-xs text-gray-600">Fin: ${p.insurance.end || '-'}</span>` : `<span class="text-gray-500">Non assuré</span>`;
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-4 font-semibold">${p.name}</td><td class="p-4">${p.roomNumber}</td><td class="p-4">${p.admissionDate}</td><td class="p-4 text-sm">${insStatus}</td><td class="p-4 flex gap-2"><button onclick="window.processExeat('${p.id}')" class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 text-sm"><i class="fas fa-walking mr-1"></i> Exéat</button><button onclick="window.processDecease('${p.id}')" class="bg-gray-800 text-white px-3 py-2 rounded hover:bg-black text-sm"><i class="fas fa-cross mr-1"></i> Décès</button></td></tr>`;
+            });
+        }
+
+        window.processExeat = async (patientId) => {
+            const date = prompt("Date d'exéat (JJ/MM/AAAA) :", new Date().toLocaleDateString('fr-FR'));
+            if(!date) return;
+            const p = patients.find(pat => pat.id === patientId);
+            await updateDoc(doc(db, "patients", patientId), { status: 'discharged', exitDate: date });
+            await updateDoc(doc(db, "rooms", p.roomId), { status: 'empty' });
+            const rec = historyData.find(h => h.patientName === p.name && h.roomNumber === p.roomNumber && h.type === 'Admission' && !h.exitDate);
+            if (rec) await updateDoc(doc(db, "history", rec.id), { exitDate: date, details: `${rec.details} | <strong>Exéat le ${date}</strong>` });
+            else addHistoryEntry('Exéat', p.name, p.roomNumber, `Date: ${date}`, date);
+            alert('Exéat enregistré : ' + date);
+        };
+
+        window.processDecease = async (patientId) => {
+            const date = prompt("Date du décès (JJ/MM/AAAA) :", new Date().toLocaleDateString('fr-FR'));
+            if(!date) return;
+            const p = patients.find(pat => pat.id === patientId);
+            await updateDoc(doc(db, "patients", patientId), { status: 'deceased', deceaseDate: date });
+            await updateDoc(doc(db, "rooms", p.roomId), { status: 'empty' });
+            const rec = historyData.find(h => h.patientName === p.name && h.roomNumber === p.roomNumber && h.type === 'Admission' && !h.exitDate);
+            if (rec) await updateDoc(doc(db, "history", rec.id), { exitDate: date, details: `${rec.details} | <strong>Décès le ${date}</strong>` });
+            else addHistoryEntry('Décès', p.name, p.roomNumber, `Date: ${date}`, date);
+            alert('Décès enregistré.');
+        };
+
+        window.resetHistory = async () => {
+            if(confirm("⚠️ SUPPRIMER TOUT l'historique ?")) { 
+                const batch = historyData.map(h => deleteDoc(doc(db, "history", h.id)));
+                await Promise.all(batch);
+                alert("Réinitialisé."); 
+            }
+        };
+
+        window.renderHistory = () => {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            const visibleHistory = historyData.filter(h => h.type === 'Admission');
+            const searchTerm = document.getElementById('historySearch').value.toLowerCase().trim();
+            const filteredHistory = searchTerm ? visibleHistory.filter(h => h.patientName.toLowerCase().includes(searchTerm)) : visibleHistory;
+            if(filteredHistory.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">${searchTerm ? 'Aucun patient trouvé.' : 'Aucun historique.'}</td></tr>`; return; }
+            filteredHistory.forEach(h => {
+                let badgeColor = 'bg-blue-100 text-blue-800', displayType = 'Admission (En cours)';
+                if (h.exitDate) {
+                    if (h.details.includes('Décès')) { badgeColor = 'bg-gray-800 text-white'; displayType = 'Séjour terminé (Décès)'; }
+                    else { badgeColor = 'bg-green-100 text-green-800'; displayType = 'Séjour terminé (Exéat)'; }
+                }
+                const exitDateDisplay = h.exitDate ? `<span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700"><i class="fas fa-calendar-day mr-1"></i> ${h.exitDate}</span>` : `<span class="text-gray-400 text-xs italic">En cours...</span>`;
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-4 text-sm text-gray-600">${h.date}</td><td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-bold ${badgeColor}">${displayType}</span></td><td class="p-4 font-medium">${h.patientName}</td><td class="p-4">${h.roomNumber}</td><td class="p-4 text-sm text-gray-700">${h.details}</td><td class="p-4">${exitDateDisplay}</td></tr>`;
+            });
+        };
+
+        // Démarrage
+        checkAuth();
+    </script>
+</body>
+</html>
